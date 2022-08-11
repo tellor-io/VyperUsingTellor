@@ -1,8 +1,10 @@
 # @version ^0.3.0
 
-import artifacts.ITellor as tellor_interface
+import artifacts.ITellor as tellor
 
 tellor_address: address
+tellor_interface: tellor
+governance: tellor
 
 @external
 def __init__(_tellor_address: address):
@@ -27,32 +29,36 @@ def getCurrentValue(query_id: bytes32) -> (bool, Bytes[100], uint256):
     count: uint256 = self.getNewValueCountbyQueryId(query_id)
 
     if count == 0:
-        return false, b"", 0
+        return False, b"", 0
 
     time: uint256 = self.getTimestampbyQueryIdandIndex(query_id, count - 1)
-    value = retrieveData(query_id, time)
+    value: Bytes[100] = self.retrieveData(query_id, time)
 
     if keccak256(value) != keccak256(b""):
-        return true, value, time
+        return True, value, time
     else:
-        return false, b"", time
+        return False, b"", time
 
 @view
 @external
 def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[100], uint256):
 
+    found: bool = False
+    index: uint256 = 0
+    value: Bytes[100] = b""
+
     found, index = self.getIndexForDataBefore(query_id, _timestamp)
 
     if not found:
-        return false, b"", 0
+        return False, b"", 0
 
     time: uint256 = self.getTimestampbyQueryIdandIndex(query_id, index)
 
     value = self.retrieveData(query_id, time)
 
     if keccak256(value) != keccak256(b""):
-        return true, value, time
-    return false, b"", 0
+        return True, value, time
+    return False, b"", 0
 
 @view
 @internal
@@ -61,76 +67,79 @@ def getIndexForDataBefore(query_id:bytes32, _timestamp:uint256) -> (bool, uint25
     count: uint256 = self.getNewValueCountbyQueryId(query_id)
 
     if count > 0:
-        middle: uint256
-        start: uint256
+        middle: uint256 = 0
+        start: uint256 = 0
         end: uint256 = count - 1
-        time: uint256
+        time: uint256 = 0
 
-    time:uint256 = self.getTimestampbyQueryIdandIndex(query_id, start)
+        time = self.getTimestampbyQueryIdandIndex(query_id, start)
 
-    if time >= _timestamp: return false, 0
+        if time >= _timestamp: return False, 0
 
-    time:uint256 = self.getTimestampbyQueryIdandIndex(query_id, end)
+        time = self.getTimestampbyQueryIdandIndex(query_id, end)
 
-    if time < _timestamp: return true, end
+        if time < _timestamp: return True, end
 
-    # binary search
-    for i in range(100000):
-        middle = (end - start) / 2 + 1 + start
-        time = getTimestampbyQueryIdandIndex(query_id, middle)
-        if time < _timestamp:
-            next_time: uint256 = getTimestampbyQueryIdandIndex(query_id, middle + 1)
-            if next_time >= _timestamp:
-                return true, middle
+        # binary search
+        for i in range(100000):
+            middle = (end - start) / 2 + 1 + start
+            time = self.getTimestampbyQueryIdandIndex(query_id, middle)
+            if time < _timestamp:
+                next_time: uint256 = self.getTimestampbyQueryIdandIndex(query_id, middle + 1)
+                if next_time >= _timestamp:
+                    return True, middle
+                else:
+                    start = middle + 1
             else:
-                start = middle + 1
-        else:
-            prev_time: uint256 = getTimestampbyQueryIdandIndex(query_id, middle - 1)
-            if prev_time < _timestamp:
-                return true, middle - 1
-            else:
-                end = middle - 1
+                prev_time: uint256 = self.getTimestampbyQueryIdandIndex(query_id, middle - 1)
+                if prev_time < _timestamp:
+                    return True, middle - 1
+                else:
+                    end = middle - 1
 
-        if middle - 1 == start or middle == count:
-            return false, 0
+            if middle - 1 == start or middle == count:
+                return False, 0
+        
+    return False, 0
 
 @view
 @internal
 def getNewValueCountbyQueryId(query_id: bytes32) -> uint256:
 
     if self.tellor_address == 0x18431fd88adF138e8b979A7246eb58EA7126ea16 or self.tellor_address == 0xe8218cACb0a5421BC6409e498d9f8CC8869945ea:
-        return tellor_interface.getTimestampCountById(query_id)
+        return self.tellor_interface.getTimestampCountById(query_id)
     else:
-        return tellor_interface.getNewValueCountbyQueryId(query_id)
+        return self.tellor_interface.getNewValueCountbyQueryId(query_id)
 
 @view
 @internal
 def getTimestampbyQueryIdandIndex(query_id: bytes32, index: uint256) -> uint256:
     
     if self.tellor_address == 0x18431fd88adF138e8b979A7246eb58EA7126ea16 or self.tellor_address == 0xe8218cACb0a5421BC6409e498d9f8CC8869945ea:
-        return tellor_interface.getReportTimestampByIndex(query, index)
+        return self.tellor_interface.getReportTimestampByIndex(query_id, index)
     else:
-        return tellor_interface.getTimestampbyQueryIdandIndex(query_id, index)
+        return self.tellor_interface.getTimestampbyQueryIdandIndex(query_id, index)
 
 # @view
-# @internal
+# @external
 # def isInDispute(query_id:bytes32, _timestamp:uint256) -> bool:
 
-#     governance: ITellor
+#     governance: tellor = tellor(0x88dF592F8eb5D7Bd38bFeF7dEb0fBc02cf3778a0)
 
-#     if tellor_address in (0x18431fd88adF138e8b979A7246eb58EA7126ea16, 0xe8218cACb0a5421BC6409e498d9f8CC8869945ea):
-#         new_tellor:ITellor = ITellor(0x88dF592F8eb5D7Bd38bFeF7dEb0fBc02cf3778a0)
-#         governance = ITellor(new_tellor.addresses(0xefa19baa864049f50491093580c5433e97e8d5e41f8db1a61108b4fa44cacd93))
+#     if self.tellor_address == 0x18431fd88adF138e8b979A7246eb58EA7126ea16 or self.tellor_address == 0xe8218cACb0a5421BC6409e498d9f8CC8869945ea:
+#         new_tellor:tellor = tellor(0x88dF592F8eb5D7Bd38bFeF7dEb0fBc02cf3778a0)
+#         governance_address: address = new_tellor.addresses(0xefa19baa864049f50491093580c5433e97e8d5e41f8db1a61108b4fa44cacd93)
+#         governance = tellor(governance_address)
 
 #     else:
-#         governance = ITellor(tellor_interface.governance())
+#         governance = tellor(self.tellor_interface.governance())
     
-#     return governance.getVoteRounds(keccak256(concat(query_id, _timestamp))).length > 0
+#     return governance.getVoteCount(keccak256(concat(query_id, _timestamp))) > 0
 
 @view
 @internal
-def retrieveData(query_id: bytes32, _timestamp: bytes32) -> Bytes[100]:
+def retrieveData(query_id: bytes32, _timestamp: uint256) -> Bytes[100]:
     if self.tellor_address == 0x18431fd88adF138e8b979A7246eb58EA7126ea16 or self.tellor_address == 0xe8218cACb0a5421BC6409e498d9f8CC8869945ea:
-        return tellor_interface.getValueByTimestamp(query_id, _timestamp)
+        return self.tellor_interface.getValueByTimestamp(query_id, _timestamp)
     else:
-        return tellor_interface.retrieveData(query_id, _timestamp)
+        return self.tellor_interface.retrieveData(query_id, _timestamp)
