@@ -1,38 +1,49 @@
 # @version ^0.3.0
 
-import artifacts.ITellor as tellor
+# import interfaces.ITellor as tellor
 
-tellor_address: address
-tellor_interface: tellor
-governance: tellor
+interface Tellor:
+    def getTimestampCountById(query_id:bytes32) -> uint256:view
+    def getNewValueCountbyQueryId(query_id:bytes32) -> uint256: view
+    def getReportTimestampByIndex(query_id:bytes32, idx:uint256) -> uint256: view
+    def retrieveData(query_id:bytes32, timestamp:uint256) -> Bytes[32]:view
+    def getValueByTimestamp(query_id:bytes32, timestamp:uint256) -> Bytes[32]:view
+    def getTimestampbyQueryIdandIndex(query_id:bytes32, timestamp:uint256) -> uint256:view
+
+
+
+tellor_address: public(address)
+tellor_interface: Tellor
+governance: Tellor
 
 @external
 def __init__(_tellor_address: address):
     """
     @dev the constructor sets the tellor address in storage
-    @param _tellor is the TellorMaster address
+    @param _tellor_address is the TellorMaster address
     """
     self.tellor_address = _tellor_address
 
 
 @view
 @external
-def getCurrentValue(query_id: bytes32) -> (bool, Bytes[100], uint256):
+def getCurrentValue(query_id: bytes32) -> (bool, Bytes[32], uint256):
     """
     @dev Allows the user to get the latest value for the queryId specified
-    @param _queryId is the id to look up the value for
+    @param query_id is the id to look up the value for
     @return _ifRetrieve bool true if non-zero value successfully retrieved
     @return _value the value retrieved
     @return _timestampRetrieved the retrieved value's timestamp
     """
 
     count: uint256 = self.getNewValueCountbyQueryId(query_id)
+    print("here")
 
     if count == 0:
         return False, b"", 0
 
     time: uint256 = self.getTimestampbyQueryIdandIndex(query_id, count - 1)
-    value: Bytes[100] = self.retrieveData(query_id, time)
+    value: Bytes[32] = self.retrieveData(query_id, time)
 
     if keccak256(value) != keccak256(b""):
         return True, value, time
@@ -41,10 +52,10 @@ def getCurrentValue(query_id: bytes32) -> (bool, Bytes[100], uint256):
 
 @view
 @external
-def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[100], uint256):
+def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[32], uint256):
     '''
     @dev Retrieves the latest value for the queryId before the specified timestamp
-    @param _queryId is the queryId to look up the value for
+    @param query_id is the queryId to look up the value for
     @param _timestamp before which to search for latest value
     @return _ifRetrieve bool true if able to retrieve a non-zero value
     @return _value the value retrieved
@@ -52,7 +63,7 @@ def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[100], 
      '''
     found: bool = False
     index: uint256 = 0
-    value: Bytes[100] = b""
+    value: Bytes[32] = b""
 
     found, index = self.getIndexForDataBefore(query_id, _timestamp)
 
@@ -72,7 +83,7 @@ def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[100], 
 def getIndexForDataBefore(query_id:bytes32, _timestamp:uint256) -> (bool, uint256):
     '''
     @dev Retrieves latest array index of data before the specified timestamp for the queryId
-    @param _queryId is the queryId to look up the index for
+    @param query_id is the queryId to look up the index for
     @param _timestamp is the timestamp before which to search for the latest index
     @return _found whether the index was found
     @return _index the latest index found before the specified timestamp
@@ -95,7 +106,7 @@ def getIndexForDataBefore(query_id:bytes32, _timestamp:uint256) -> (bool, uint25
         if time < _timestamp: return True, end
 
         # binary search
-        for i in range(100000):
+        for i in range(320):
             middle = (end - start) / 2 + 1 + start
             time = self.getTimestampbyQueryIdandIndex(query_id, middle)
             if time < _timestamp:
@@ -126,8 +137,10 @@ def getNewValueCountbyQueryId(query_id: bytes32) -> uint256:
     '''
 
     if self.tellor_address == 0x18431fd88adF138e8b979A7246eb58EA7126ea16 or self.tellor_address == 0xe8218cACb0a5421BC6409e498d9f8CC8869945ea:
+        print("here1")
         return self.tellor_interface.getTimestampCountById(query_id)
     else:
+        print("here2")
         return self.tellor_interface.getNewValueCountbyQueryId(query_id)
 
 @view
@@ -147,7 +160,7 @@ def getTimestampbyQueryIdandIndex(query_id: bytes32, index: uint256) -> uint256:
 
 @view
 @internal
-def retrieveData(query_id: bytes32, _timestamp: uint256) -> Bytes[100]:
+def retrieveData(query_id: bytes32, _timestamp: uint256) -> Bytes[32]:
     '''
     @dev Retrieve value from oracle based on queryId/timestamp
     @param _queryId being requested
