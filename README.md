@@ -36,4 +36,3 @@ def newETHPrice() -> uint256:
   else:
       raise "unable to retrieve ETH price from Tellor"
 ```
-
