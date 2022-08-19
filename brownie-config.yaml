@@ -1,0 +1,5 @@
+networks:
+    default: mainnet-fork
+    mainnet-fork:
+      cmd_settings:
+          fork: https://eth-mainnet.g.alchemy.com/v2/bslFVIFEqP1J9aVI72sdFmtWAJvnC-nd

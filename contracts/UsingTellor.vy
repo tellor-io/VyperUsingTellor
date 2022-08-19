@@ -6,10 +6,9 @@ interface Tellor:
     def getTimestampCountById(query_id:bytes32) -> uint256:view
     def getNewValueCountbyQueryId(query_id:bytes32) -> uint256: view
     def getReportTimestampByIndex(query_id:bytes32, idx:uint256) -> uint256: view
-    def retrieveData(query_id:bytes32, timestamp:uint256) -> Bytes[32]:view
-    def getValueByTimestamp(query_id:bytes32, timestamp:uint256) -> Bytes[32]:view
+    def retrieveData(query_id:bytes32, timestamp:uint256) -> Bytes[100]:view
+    def getValueByTimestamp(query_id:bytes32, timestamp:uint256) -> Bytes[100]:view
     def getTimestampbyQueryIdandIndex(query_id:bytes32, timestamp:uint256) -> uint256:view
-
 
 
 tellor_address: public(address)
@@ -23,11 +22,12 @@ def __init__(_tellor_address: address):
     @param _tellor_address is the TellorMaster address
     """
     self.tellor_address = _tellor_address
+    self.tellor_interface = Tellor(self.tellor_address)
 
 
 @view
 @external
-def getCurrentValue(query_id: bytes32) -> (bool, Bytes[32], uint256):
+def getCurrentValue(query_id: bytes32) -> (bool, Bytes[100], uint256):
     """
     @dev Allows the user to get the latest value for the queryId specified
     @param query_id is the id to look up the value for
@@ -37,13 +37,12 @@ def getCurrentValue(query_id: bytes32) -> (bool, Bytes[32], uint256):
     """
 
     count: uint256 = self.getNewValueCountbyQueryId(query_id)
-    print("here")
 
     if count == 0:
         return False, b"", 0
 
     time: uint256 = self.getTimestampbyQueryIdandIndex(query_id, count - 1)
-    value: Bytes[32] = self.retrieveData(query_id, time)
+    value: Bytes[100] = self.retrieveData(query_id, time)
 
     if keccak256(value) != keccak256(b""):
         return True, value, time
@@ -52,7 +51,7 @@ def getCurrentValue(query_id: bytes32) -> (bool, Bytes[32], uint256):
 
 @view
 @external
-def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[32], uint256):
+def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[100], uint256):
     '''
     @dev Retrieves the latest value for the queryId before the specified timestamp
     @param query_id is the queryId to look up the value for
@@ -63,7 +62,7 @@ def getDataBefore(query_id: bytes32, _timestamp: uint256) -> (bool, Bytes[32], u
      '''
     found: bool = False
     index: uint256 = 0
-    value: Bytes[32] = b""
+    value: Bytes[100] = b""
 
     found, index = self.getIndexForDataBefore(query_id, _timestamp)
 
@@ -106,7 +105,7 @@ def getIndexForDataBefore(query_id:bytes32, _timestamp:uint256) -> (bool, uint25
         if time < _timestamp: return True, end
 
         # binary search
-        for i in range(320):
+        for i in range(100000000):
             middle = (end - start) / 2 + 1 + start
             time = self.getTimestampbyQueryIdandIndex(query_id, middle)
             if time < _timestamp:
@@ -160,7 +159,7 @@ def getTimestampbyQueryIdandIndex(query_id: bytes32, index: uint256) -> uint256:
 
 @view
 @internal
-def retrieveData(query_id: bytes32, _timestamp: uint256) -> Bytes[32]:
+def retrieveData(query_id: bytes32, _timestamp: uint256) -> Bytes[100]:
     '''
     @dev Retrieve value from oracle based on queryId/timestamp
     @param _queryId being requested

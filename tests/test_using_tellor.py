@@ -1,11 +1,11 @@
 import pytest
 
-from brownie import Contract, UsingTellor, accounts
-from brownie.convert import to_bytes
+from brownie import Contract, UsingTellor, accounts, chain
+from brownie.convert import to_bytes, to_int
 
 import boa
 
-tellor_address = "0x88dF592F8eb5D7Bd38bFeF7dEb0fBc02cf3778a0"
+tellor_address = "0xe8218cACb0a5421BC6409e498d9f8CC8869945ea"
 
 @pytest.fixture
 def tellor():
@@ -13,12 +13,25 @@ def tellor():
 
 @pytest.fixture
 def using_tellor():
-    return boa.load("contracts/UsingTellor.vy", tellor_address)
+    # return boa.load("contracts/UsingTellor.vy", tellor_address)
+    yield UsingTellor.deploy(tellor_address, {"from": accounts[0]})
 def test_deployment(using_tellor):
     assert using_tellor.tellor_address() == tellor_address.lower()
 
 def test_get_current_value(using_tellor):
-    # query_id = "0x9cc19baefd2378ba58d7810a68dce05557818a8ce750b65c5a78e968ce0b28d7"
     query_id = to_bytes("0x1")
-    v = using_tellor.getCurrentValue(query_id)
-    assert v > 0
+    success, value, timestamp = using_tellor.getCurrentValue(query_id)
+
+    assert success
+    assert to_int(value) > 0
+    assert timestamp > 0
+
+def test_get_data_before(using_tellor):
+    query_id = to_bytes("0x1")
+    timestamp_in = 1660922409
+    success, value, timestamp_out = using_tellor.getDataBefore(query_id, timestamp_in)
+    print(success, value, timestamp_out)
+
+    assert success
+    assert to_int(value) > 0
+    assert timestamp_out - timestamp_in < 500
